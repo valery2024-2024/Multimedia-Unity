@@ -1,0 +1,175 @@
+AudioManager
+-------------------
+using UnityEngine;
+
+public class AudioManager : MonoBehaviour
+{
+    // Сінглтон – один спільний менеджер для всіх сцен
+    public static AudioManager Instance;
+
+    // Посилання на два AudioSource, які стоять на цьому ж об'єкті
+    public AudioSource musicSource;   // сюди в інспекторі перетягую той AudioSource, що грає музику
+    public AudioSource sfxSource;     // сюди – AudioSource для коротких звуків (клік і т.д.)
+
+    [Range(0f, 1f)]
+    public float volume = 1f;         // загальна гучність
+
+    private void Awake()
+    {
+        // Якщо менеджер вже є – знищити дубль
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        // Запам'ятати себе як єдиний екземпляр
+        Instance = this;
+
+        // Не знищувати цей об'єкт при переході між сценами
+        DontDestroyOnLoad(gameObject);
+
+        // Застосувати поточну гучність до джерел звуку
+        ApplyVolume();
+    }
+
+    // ---------------- ФОНОВА МУЗИКА ----------------
+
+    // Запустити музику з вказаним кліпом
+    public void PlayMusic(AudioClip clip)
+    {
+        if (clip == null || musicSource == null) return;
+
+        musicSource.clip = clip;  // призначаю кліп
+        musicSource.loop = true;  // музика по колу
+        musicSource.Play();       // старт
+    }
+
+    // Пауза музики
+    public void PauseMusic()
+    {
+        if (musicSource != null && musicSource.isPlaying)
+            musicSource.Pause();
+    }
+
+    // Повна зупинка музики
+    public void StopMusic()
+    {
+        if (musicSource != null)
+            musicSource.Stop();
+    }
+
+    // ---------------- ГУЧНІСТЬ ----------------
+
+    // Змінити гучність (0..1)
+    public void SetVolume(float value)
+    {
+        volume = Mathf.Clamp01(value); // обмежую діапазон 0–1
+        ApplyVolume();
+    }
+
+    // Застосувати гучність до всіх джерел
+    private void ApplyVolume()
+    {
+        if (musicSource != null)
+            musicSource.volume = volume;
+
+        if (sfxSource != null)
+            sfxSource.volume = volume;
+    }
+
+    // ---------------- ЗВУКОВІ ЕФЕКТИ ----------------
+
+    // Програти короткий ефект поверх музики
+    public void PlaySFX(AudioClip clip)
+    {
+        if (clip == null || sfxSource == null) return;
+
+        sfxSource.PlayOneShot(clip);
+    }
+}
+#################################################################################
+SceneMusicStarter
+-----------------
+using UnityEngine;
+
+public class SceneMusicStarter : MonoBehaviour
+{
+    // Кліп музики, який буде грати на цій сцені
+    public AudioClip backgroundMusic;
+
+    private void Start()
+    {
+        // Якщо існує AudioManager — запускаємо фонову музику
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayMusic(backgroundMusic);
+        }
+    }
+}
+#######################################################################################
+SFXTestButton
+----------------------
+using UnityEngine;
+
+public class SFXTestButton : MonoBehaviour
+{
+    // Кліп короткого звука (клік, постріл і т.д.)
+    public AudioClip testSfx;
+
+    // Цей метод викликається, коли натискають кнопку
+    public void OnClickPlaySFX()
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX(testSfx);
+        }
+    }
+}
+###############################################################################
+VolumeSlider
+-----------------
+using UnityEngine;
+using UnityEngine.UI;
+
+public class VolumeSlider : MonoBehaviour
+{
+    private Slider slider;
+
+    private void Start()
+    {
+        slider = GetComponent<Slider>();
+
+        // Встановлюю значення слайдера на поточну гучність з AudioManager
+        slider.value = AudioManager.Instance.volume;
+
+        // Реакція на зміну положення слайдера
+        slider.onValueChanged.AddListener(OnVolumeChanged);
+    }
+
+    private void OnVolumeChanged(float value)
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.SetVolume(value);
+        }
+    }
+}
+################################################################################
+LoadSceneButton
+---------------------
+using UnityEngine;
+using UnityEngine.SceneManagement; // потрібно для завантаження сцен
+
+public class LoadSceneButton : MonoBehaviour
+{
+    // Назва сцени, яку треба завантажити
+    public string sceneName = "GameScene";
+
+    // Цей метод викликається кнопкою OnClick
+    public void LoadScene()
+    {
+        SceneManager.LoadScene(sceneName);
+    }
+}
+
